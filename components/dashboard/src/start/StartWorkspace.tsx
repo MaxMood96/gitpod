@@ -310,7 +310,7 @@ interface ImageBuildViewProps {
   error?: StartWorkspaceError;
 }
 
-function ImageBuildView(props: ImageBuildViewProps) {
+export function ImageBuildView(props: ImageBuildViewProps) {
   const logsEmitter = new EventEmitter();
 
   useEffect(() => {
