@@ -24,8 +24,20 @@ export class DBWorkspace implements Workspace {
     @Index()
     ownerId: string;
 
+    @Column({
+        default: '',
+        transformer: Transformer.MAP_EMPTY_STR_TO_UNDEFINED
+    })
+    projectId?: string;
+
     @Column("text")
     contextURL: string;
+
+    @Column({
+        default: '',
+        transformer: Transformer.MAP_EMPTY_STR_TO_UNDEFINED
+    })
+    branch?: string;
 
     @Column()
     description: string;

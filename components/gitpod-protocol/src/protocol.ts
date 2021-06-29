@@ -392,10 +392,13 @@ export interface Workspace {
     id: string;
     creationTime: string;
     contextURL: string;
+    branch?: string;
     description: string;
     ownerId: string;
     context: WorkspaceContext;
     config: WorkspaceConfig;
+
+    projectId?: string;
 
     /**
      * The source where to get the workspace base image from. This source is resolved
@@ -631,6 +634,7 @@ export type PrebuiltWorkspaceState
 export interface PrebuiltWorkspace {
     id: string;
     cloneURL: string;
+    branch?: string;
     commit: string;
     buildWorkspaceId: string;
     creationTime: string;
@@ -765,6 +769,8 @@ export namespace ExternalImageConfigFile {
 export interface WorkspaceContext {
     title: string;
     normalizedContextURL?: string;
+    branch?: string;
+    projectId?: string;
     forceCreateNewWorkspace?: boolean;
     forceImageBuild?: boolean;
 }
@@ -814,6 +820,7 @@ export namespace SnapshotContext {
 
 export interface StartPrebuildContext extends WorkspaceContext {
     actual: WorkspaceContext;
+    branch?: string;
     commitHistory?: string[];
 }
 

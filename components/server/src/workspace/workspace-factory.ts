@@ -13,7 +13,6 @@ import { TraceContext } from '@gitpod/gitpod-protocol/lib/util/tracing';
 import { ImageBuilderClientProvider } from '@gitpod/image-builder/lib';
 import { inject, injectable } from 'inversify';
 import { ResponseError } from 'vscode-jsonrpc';
-import { TheiaPluginService } from '../theia-plugin/theia-plugin-service';
 import { ConfigProvider } from './config-provider';
 import { ImageSourceProvider } from './image-source-provider';
 
@@ -24,21 +23,20 @@ export class WorkspaceFactory {
     @inject(ConfigProvider) protected configProvider: ConfigProvider;
     @inject(ImageBuilderClientProvider) protected imagebuilderClientProvider: ImageBuilderClientProvider;
     @inject(ImageSourceProvider) protected imageSourceProvider: ImageSourceProvider;
-    @inject(TheiaPluginService) protected readonly pluginService: TheiaPluginService;
 
-    public async createForContext(ctx: TraceContext, user: User, context: WorkspaceContext, normalizedContextURL: string): Promise<Workspace> {
+    public async createForContext(ctx: TraceContext, user: User, context: WorkspaceContext): Promise<Workspace> {
         if (SnapshotContext.is(context)) {
             return this.createForSnapshot(ctx, user, context);
         } else if (CommitContext.is(context)) {
-            return this.createForCommit(ctx, user, context, normalizedContextURL);
+            return this.createForCommit(ctx, user, context);
         } else if (WorkspaceProbeContext.is(context)) {
-            return this.createForWorkspaceProbe(ctx, user, context, normalizedContextURL);
+            return this.createForWorkspaceProbe(ctx, user, context);
         }
         log.error({userId: user.id}, "Couldn't create workspace for context", context);
         throw new Error("Couldn't create workspace for context");
     }
 
-    protected async createForWorkspaceProbe(ctx: TraceContext, user: User, context: WorkspaceProbeContext, contextURL: string): Promise<Workspace> {
+    protected async createForWorkspaceProbe(ctx: TraceContext, user: User, context: WorkspaceProbeContext): Promise<Workspace> {
         const span = TraceContext.startSpan("createForWorkspaceProbe", ctx);
 
         try {
@@ -66,7 +64,7 @@ export class WorkspaceFactory {
                 ownerId: user.id,
                 config,
                 context,
-                contextURL,
+                contextURL: context.normalizedContextURL || "", // cf. WorkspaceHealthMonitoring
                 imageSource,
                 description: "workspace probe",
             };
@@ -135,10 +133,14 @@ export class WorkspaceFactory {
         }
     }
 
-    protected async createForCommit(ctx: TraceContext, user: User, context: CommitContext, normalizedContextURL: string) {
+    protected async createForCommit(ctx: TraceContext, user: User, context: CommitContext) {
         const span = TraceContext.startSpan("createForCommit", ctx);
 
         try {
+            const contextURL = context.normalizedContextURL;
+            if (!contextURL) {
+                throw new Error("Missing Context URL."); // not expected!
+            }
             const config = await this.configProvider.fetchConfig({span}, user, context);
             const imageSource = await this.imageSourceProvider.getImageSource(ctx, user, context, config);
 
@@ -147,9 +149,11 @@ export class WorkspaceFactory {
                 id,
                 type: "regular",
                 creationTime: new Date().toISOString(),
-                contextURL: normalizedContextURL,
+                contextURL,
+                branch: context.branch,
                 description: this.getDescription(context),
                 ownerId: user.id,
+                projectId: context.projectId,
                 context,
                 imageSource,
                 config

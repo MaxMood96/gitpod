@@ -28,17 +28,17 @@ export class WorkspaceFactoryEE extends WorkspaceFactory {
         }
     }
 
-    public async createForContext(ctx: TraceContext, user: User, context: WorkspaceContext, normalizedContextURL: string): Promise<Workspace> {
+    public async createForContext(ctx: TraceContext, user: User, context: WorkspaceContext): Promise<Workspace> {
         if (StartPrebuildContext.is(context)) {
-            return this.createForStartPrebuild(ctx, user, context, normalizedContextURL);
+            return this.createForStartPrebuild(ctx, user, context);
         } else if (PrebuiltWorkspaceContext.is(context)) {
-            return this.createForPrebuiltWorkspace(ctx, user, context, normalizedContextURL);
+            return this.createForPrebuiltWorkspace(ctx, user, context);
         }
 
-        return super.createForContext(ctx, user, context, normalizedContextURL);
+        return super.createForContext(ctx, user, context);
     }
 
-    protected async createForStartPrebuild(ctx: TraceContext, user: User, context: StartPrebuildContext, normalizedContextURL: string): Promise<Workspace> {
+    protected async createForStartPrebuild(ctx: TraceContext, user: User, context: StartPrebuildContext): Promise<Workspace> {
         this.requireEELicense(Feature.FeaturePrebuild);
         const span = TraceContext.startSpan("createForStartPrebuild", ctx);
 
@@ -104,13 +104,13 @@ export class WorkspaceFactoryEE extends WorkspaceFactory {
                     originalContext: commitContext,
                     prebuiltWorkspace: parentPrebuild,
                 }
-                ws = await this.createForPrebuiltWorkspace({span}, user, incrementalPrebuildContext, normalizedContextURL);
+                ws = await this.createForPrebuiltWorkspace({span}, user, incrementalPrebuildContext);
                 break;
             }
 
             if (!ws) {
                 // No suitable parent prebuild was found -- create a (fresh) full prebuild.
-                ws = await this.createForCommit({span}, user, commitContext, normalizedContextURL);
+                ws = await this.createForCommit({span}, user, commitContext);
             }
             ws.type = "prebuild";
             ws = await this.db.trace({span}).store(ws);
@@ -135,11 +135,11 @@ export class WorkspaceFactoryEE extends WorkspaceFactory {
         }
     }
 
-    protected async createForPrebuiltWorkspace(ctx: TraceContext, user: User, context: PrebuiltWorkspaceContext, normalizedContextURL: string): Promise<Workspace> {
+    protected async createForPrebuiltWorkspace(ctx: TraceContext, user: User, context: PrebuiltWorkspaceContext): Promise<Workspace> {
         this.requireEELicense(Feature.FeaturePrebuild);
         const span = TraceContext.startSpan("createForPrebuiltWorkspace", ctx);
 
-        const fallback = await this.fallbackIfOutPrebuildTime(ctx, user, context, normalizedContextURL);
+        const fallback = await this.fallbackIfOutPrebuildTime(ctx, user, context);
         if (!!fallback) {
             return fallback;
         }
@@ -150,11 +150,16 @@ export class WorkspaceFactoryEE extends WorkspaceFactory {
             if (!buildWorkspace) {
                 log.error({ userId: user.id }, `No build workspace with ID ${buildWorkspaceID} found - falling back to original context`);
                 span.log({'error': `No build workspace with ID ${buildWorkspaceID} found - falling back to original context`});
-                return await this.createForContext({span}, user, context.originalContext, normalizedContextURL);
+                return await this.createForContext({span}, user, context.originalContext);
             }
             const config = { ... buildWorkspace.config };
             config.vscode = {
                 extensions: config && config.vscode && config.vscode.extensions || []
+            }
+
+            const contextURL = context.normalizedContextURL;
+            if (!contextURL) {
+                throw new Error("Context URL is missing!"); // not exptected!
             }
 
             const id = await generateWorkspaceID();
@@ -162,7 +167,7 @@ export class WorkspaceFactoryEE extends WorkspaceFactory {
                 id,
                 type: "regular",
                 creationTime: new Date().toISOString(),
-                contextURL: normalizedContextURL,
+                contextURL,
                 description: this.getDescription(context),
                 ownerId: user.id,
                 context: <WorkspaceContext & WithSnapshot & WithPrebuild>{
@@ -187,12 +192,12 @@ export class WorkspaceFactoryEE extends WorkspaceFactory {
         }
     }
 
-    protected async fallbackIfOutPrebuildTime(ctx: TraceContext, user: User, context: PrebuiltWorkspaceContext, normalizedContextURL: string): Promise<Workspace | undefined> {
+    protected async fallbackIfOutPrebuildTime(ctx: TraceContext, user: User, context: PrebuiltWorkspaceContext): Promise<Workspace | undefined> {
         const prebuildTime = await this.workspaceDB.getTotalPrebuildUseSeconds(30);
         if (!this.licenseEvaluator.canUsePrebuild(prebuildTime || 0)) {
             // TODO: find a way to signal the out-of-prebuild-time situation
             log.warn({}, "cannot use prebuild because enterprise license prevents it", {prebuildTime});
-            return this.createForContext(ctx, user, context.originalContext, normalizedContextURL);
+            return this.createForContext(ctx, user, context.originalContext);
         }
 
         return;

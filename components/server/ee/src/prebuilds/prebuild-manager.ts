@@ -5,7 +5,7 @@
  */
 
 import { DBWithTracing, TracedWorkspaceDB, WorkspaceDB } from '@gitpod/gitpod-db/lib';
-import { CommitContext, StartPrebuildContext, User, WorkspaceConfig, WorkspaceInstance } from '@gitpod/gitpod-protocol';
+import { CommitContext, Project, StartPrebuildContext, User, WorkspaceConfig, WorkspaceInstance } from '@gitpod/gitpod-protocol';
 import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
 import { TraceContext } from '@gitpod/gitpod-protocol/lib/util/tracing';
 import { inject, injectable } from 'inversify';
@@ -51,7 +51,7 @@ export class PrebuildManager {
         }
     }
 
-    async startPrebuild(ctx: TraceContext, user: User, contextURL: string, cloneURL: string, commit: string): Promise<StartPrebuildResult> {
+    async startPrebuild(ctx: TraceContext, {user, project}: {user: User, project?: Project}, contextURL: string, cloneURL: string, commit: string, branch?: string): Promise<StartPrebuildResult> {
         const span = TraceContext.startSpan("startPrebuild", ctx);
         span.setTag("contextURL", contextURL);
         span.setTag("cloneURL", cloneURL);
@@ -70,10 +70,13 @@ export class PrebuildManager {
             actual.revision = commit;  // Make sure we target the correct commit here (might have changed between trigger and contextParser lookup)
             actual.ref = undefined;
             actual.forceCreateNewWorkspace = true;
+            actual.normalizedContextURL = contextURL;
 
             const prebuildContext: StartPrebuildContext = {
                 title: `Prebuild of "${actual.title}"`,
-                actual
+                actual,
+                normalizedContextURL: contextURL,
+                branch
             };
 
             if (this.shouldPrebuildIncrementally(actual.repository.cloneUrl)) {
@@ -83,7 +86,7 @@ export class PrebuildManager {
 
             log.debug("Created prebuild context", prebuildContext);
 
-            const workspace = await this.workspaceFactory.createForContext({span}, user, prebuildContext, contextURL);
+            const workspace = await this.workspaceFactory.createForContext({span}, user, prebuildContext);
 
             // const canBuildNow = await this.prebuildRateLimiter.canBuildNow({ span }, user, cloneURL);
             // if (!canBuildNow) {

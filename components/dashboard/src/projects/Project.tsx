@@ -35,7 +35,26 @@ export default function () {
             const project = projects.find(p => p.name === projectName);
             if (project) {
                 setProject(project);
-                setPrebuilds(await getGitpodService().server.getPrebuilds(team.id, project.id));
+                // setPrebuilds(await getGitpodService().server.getPrebuilds(team.id, project.id));
+                setPrebuilds([{
+                    id: "123",
+                    branch: "feature-branch",
+                    cloneUrl: "http://github.com/cool-test-org/foo",
+                    startedAt: "2021-06-21T08:45:16.807Z",
+                    startedBy: "AlexTugarev",
+                    project: "lama",
+                    status: "available",
+                    teamId: "ACME"
+                }, {
+                    id: "123",
+                    branch: "feature-branch",
+                    cloneUrl: "http://github.com/cool-test-org/foo",
+                    startedAt: "2021-06-20T08:45:16.807Z",
+                    startedBy: "AlexTugarev",
+                    project: "lama",
+                    status: "available",
+                    teamId: "ACME"
+                }])
             }
         })();
     }, [team]);

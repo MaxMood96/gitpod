@@ -838,8 +838,8 @@ export class GitpodServerImpl<Client extends GitpodClient, Server extends Gitpod
                 span.log({ prebuild: "available" });
                 context = prebuiltWorkspace;
             }
-
-            const workspace = await this.workspaceFactory.createForContext({ span }, user, context, normalizedContextUrl);
+            context.normalizedContextURL = normalizedContextUrl;
+            const workspace = await this.workspaceFactory.createForContext({ span }, user, context);
             try {
                 await this.guardAccess({ kind: "workspace", subject: workspace }, "create");
             } catch (err) {

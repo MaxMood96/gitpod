@@ -29,6 +29,18 @@ export default function () {
         }
         (async () => {
             const infos = await getGitpodService().server.getProjects(team.id);
+            for (const dummy of infos) {
+                dummy.lastPrebuild = {
+                    id: "123",
+                    branch: "feature-branch",
+                    cloneUrl: "http://github.com/cool-test-org/foo",
+                    startedAt: "2021-06-20T08:45:16.807Z",
+                    startedBy: "AlexTugarev",
+                    project: "lama",
+                    status: "available",
+                    teamId: "ACME"
+                }
+            }
             setProjects(infos);
         })();
     }, [team]);
