@@ -20,4 +20,4 @@ async function wipeDevstaging() {
     werft.done('wipe');
 }
 
-wipeDevstaging()
+wipeDevstaging();
