@@ -5,9 +5,12 @@
 package blobserve
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
+	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -38,8 +41,9 @@ type Config struct {
 	Port    int           `json:"port"`
 	Timeout util.Duration `json:"timeout,omitempty"`
 	Repos   map[string]struct {
-		PrePull []string `json:"prePull,omitempty"`
-		Workdir string   `json:"workdir,omitempty"`
+		PrePull      []string          `json:"prePull,omitempty"`
+		Workdir      string            `json:"workdir,omitempty"`
+		InlineStatic map[string]string `json:"inlineStatic"`
 	} `json:"repos"`
 	// AllowAnyRepo enables users to access any repo/image, irregardles if they're listed in the
 	// ref config or not.
@@ -123,8 +127,10 @@ func (reg *Server) serve(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var workdir string
+	var inlineStatic map[string]string
 	if cfg, ok := reg.Config.Repos[repo]; ok {
 		workdir = cfg.Workdir
+		inlineStatic = cfg.InlineStatic
 	} else if !reg.Config.AllowAnyRepo {
 		log.WithField("repo", repo).Debug("forbidden repo access attempt")
 		http.Error(w, fmt.Sprintf("forbidden repo: %q", html.EscapeString(repo)), http.StatusForbidden)
@@ -156,7 +162,8 @@ func (reg *Server) serve(w http.ResponseWriter, req *http.Request) {
 	// http.FileServer has a special case where ServeFile redirects any request where r.URL.Path
 	// ends in "/index.html" to the same path, without the final "index.html".
 	// We do not want this behaviour to make the gitpod-ide-index mechanism in ws-proxy work.
-	if strings.TrimPrefix(req.URL.Path, pathPrefix) == "/index.html" {
+	p := strings.TrimPrefix(req.URL.Path, pathPrefix)
+	if p == "/index.html" || p == "/" {
 		fn := filepath.Join(workdir, "index.html")
 
 		fc, err := blob.Open(fn)
@@ -172,7 +179,32 @@ func (reg *Server) serve(w http.ResponseWriter, req *http.Request) {
 			modTime = s.ModTime()
 		}
 
-		http.ServeContent(w, req, "index.html", modTime, fc)
+		if inlineStatic == nil {
+			http.ServeContent(w, req, "index.html", modTime, fc)
+			return
+		}
+
+		content, err := ioutil.ReadAll(fc)
+		if err != nil {
+			log.WithError(err).WithField("fn", fn).Debug("cannot read index.html")
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		var inlineVars map[string]string
+		inlineVarsValue := req.Response.Header.Get("inlineVars")
+		if inlineVarsValue != "" {
+			json.Unmarshal([]byte(inlineVarsValue), &inlineVars)
+		}
+
+		for search, replace := range inlineStatic {
+			for k, v := range inlineVars {
+				search = strings.ReplaceAll(search, "${"+k+"}", v)
+			}
+			content = bytes.ReplaceAll(content, []byte(search), []byte(replace))
+		}
+
+		http.ServeContent(w, req, "index.html", modTime, bytes.NewReader(content))
 		return
 	}
 

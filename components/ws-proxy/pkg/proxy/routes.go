@@ -7,6 +7,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -471,7 +472,7 @@ func workspaceMustExistHandler(config *Config, infoProvider WorkspaceInfoProvide
 			if info == nil {
 				log.WithFields(log.OWI("", coords.ID, "")).Info("no workspace info found - redirecting to start")
 				redirectURL := fmt.Sprintf("%s://%s/start/#%s", config.GitpodInstallation.Scheme, config.GitpodInstallation.HostName, coords.ID)
-				http.Redirect(resp, req, redirectURL, 302)
+				http.Redirect(resp, req, redirectURL, http.StatusFound)
 				return
 			}
 
@@ -528,6 +529,20 @@ type blobserveTransport struct {
 }
 
 func (t *blobserveTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	image := t.resolveImage(req)
+
+	if image != "" {
+		inlineVars := make(map[string]string)
+		inlineVars["self"] = t.asBlobserveURL(image, "")
+		inlineVars["supervisor"] = t.asBlobserveURL(t.Config.WorkspacePodConfig.SupervisorImage, "")
+		inlinveVarsValue, err := json.Marshal(inlineVars)
+		if err != nil {
+			log.WithField("inlineVars", inlineVars).Error("could no serialize inline vars")
+		} else {
+			req.Header.Add("inlineVars", string(inlinveVarsValue))
+		}
+	}
+
 	for {
 		resp, err = t.transport.RoundTrip(req)
 		if err != nil {
@@ -582,7 +597,6 @@ func (t *blobserveTransport) RoundTrip(req *http.Request) (resp *http.Response, 
 	}
 	// endregion
 
-	image := t.resolveImage(req)
 	if image == "" {
 		return resp, nil
 	}
@@ -593,14 +607,7 @@ func (t *blobserveTransport) RoundTrip(req *http.Request) (resp *http.Response, 
 
 func (t *blobserveTransport) redirect(image string, req *http.Request) (*http.Response, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/"+image)
-	location := fmt.Sprintf("%s://%s%s/%s%s%s",
-		t.Config.GitpodInstallation.Scheme,
-		"blobserve",
-		t.Config.GitpodInstallation.WorkspaceHostSuffix,
-		image,
-		imagePathSeparator,
-		path,
-	)
+	location := t.asBlobserveURL(image, path)
 
 	header := make(http.Header, 2)
 	header.Set("Location", location)
@@ -620,6 +627,17 @@ func (t *blobserveTransport) redirect(image string, req *http.Request) (*http.Re
 		StatusCode:    code,
 		Status:        status,
 	}, nil
+}
+
+func (t *blobserveTransport) asBlobserveURL(image string, path string) string {
+	return fmt.Sprintf("%s://%s%s/%s%s%s",
+		t.Config.GitpodInstallation.Scheme,
+		"blobserve",
+		t.Config.GitpodInstallation.WorkspaceHostSuffix,
+		image,
+		imagePathSeparator,
+		path,
+	)
 }
 
 // endregion

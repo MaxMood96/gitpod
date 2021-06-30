@@ -28,7 +28,12 @@ data:
                 },
                 "{{ template "gitpod.comp.imageRepo" (dict "root" . "gp" $.Values "comp" .Values.components.workspace.codeImage) }}": {
                     "prePull": ["{{- template "gitpod.comp.version" (dict "root" . "gp" $.Values "comp" .Values.components.workspace.codeImage) -}}"],
-                    "workdir": "/ide"
+                    "workdir": "/ide",
+                    "inlineStatic": {
+                        "${window.location.origin}": ".",
+                        "./out": "${self}/out",
+                        "/_supervisor": "${supervisor}/_supervisor"
+                    }
                 },
                 "{{ template "gitpod.comp.imageRepo" (dict "root" . "gp" $.Values "comp" .Values.components.workspace.supervisor) }}": {
                     "prePull": ["{{- template "gitpod.comp.version" (dict "root" . "gp" $.Values "comp" .Values.components.workspace.supervisor) -}}"],
