@@ -372,6 +372,11 @@ func (rs *remoteContentStorage) BackupObject(name string) string {
 	return ""
 }
 
+// InstanceObject returns a instance's object name that a direct downloader would download
+func (rs *remoteContentStorage) InstanceObject(workspaceID string, instanceID string, name string) string {
+	return ""
+}
+
 // SnapshotObject returns a snapshot's object name that a direct downloer would download
 func (rs *remoteContentStorage) SnapshotObject(name string) string {
 	return ""

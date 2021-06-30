@@ -359,7 +359,6 @@ func (s *WorkspaceService) DisposeWorkspace(ctx context.Context, req *api.Dispos
 	if err != nil {
 		log.WithError(err).WithFields(sess.OWI()).Error("log backup failed")
 		// atm we do not fail the workspace here, yet, because we still might succeed with its content!
-		return nil, status.Error(codes.DataLoss, "log backup failed")
 	}
 
 	if req.Backup {
@@ -613,14 +612,15 @@ func (s *WorkspaceService) uploadWorkspaceLogs(ctx context.Context, sess *sessio
 		return err
 	}
 	for _, absLogPath := range logFiles {
-		streamID, parseErr := logs.ParseStreamID(absLogPath)
+		taskID, parseErr := logs.ParseTaskID(absLogPath)
 		if parseErr != nil {
 			log.WithError(parseErr).Warn("cannot parse workspace log file name")
 			continue
 		}
 
 		err = retryIfErr(ctx, s.config.Backup.Attempts, log.WithFields(sess.OWI()).WithField("op", "upload log"), func(ctx context.Context) (err error) {
-			_, _, err = rs.UploadInstance(ctx, absLogPath, streamID)
+			// TODO(gpl) We name the log file by taskID bc that's the only thing we have readily available. It would be more consistent to use terminalID instead, which we don't have at our disposal here.
+			_, _, err = rs.UploadInstance(ctx, absLogPath, logs.UploadedWorkspaceLogPath(taskID))
 			if err != nil {
 				return
 			}
