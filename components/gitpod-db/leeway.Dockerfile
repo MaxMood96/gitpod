@@ -2,7 +2,7 @@
 # Licensed under the GNU Affero General Public License (AGPL).
 # See License-AGPL.txt in the project root for license information.
 
-FROM node:12.18.3-slim as builder
+FROM node:12.22.5-slim as builder
 COPY components-gitpod-db--migrations /installer/
 WORKDIR /app
 RUN /installer/install.sh
@@ -11,7 +11,7 @@ FROM node:12.18.3 as proxy
 RUN wget https://storage.googleapis.com/cloudsql-proxy/v1.23.0/cloud_sql_proxy.linux.amd64 -O /bin/cloud_sql_proxy \
  && chmod +x /bin/cloud_sql_proxy
 
-FROM node:12.18.3-slim
+FROM node:12.22.5-slim
 COPY migrate.sh /app/migrate.sh
 COPY migrate_gcp.sh /app/migrate_gcp.sh
 COPY typeorm.sh /app/typeorm.sh
