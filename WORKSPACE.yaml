@@ -6,30 +6,29 @@ defaultArgs:
   publishToNPM: true
   localAppVersion: unknown
   codeCommit: 25d9dd4c307716427469c02e8160b15cee4959f1
-
+  pycharmDownloadUrl: https://download.jetbrains.com/python/pycharm-professional-2021.3.1.tar.gz
 defaultVariant:
   srcs:
     exclude:
-    # Make sure we don't include node_modules/**/*.ts by accident
-    - "**/node_modules/**"
+      # Make sure we don't include node_modules/**/*.ts by accident
+      - "**/node_modules/**"
   config:
     go:
       lintCommand: ["sh", "-c", "gokart scan && golangci-lint run --disable govet,errcheck,typecheck,staticcheck --allow-parallel-runners --timeout 5m"]
-
 variants:
-- name: oss
-  components:
-    exclude:
-      - components/ee/ws-scheduler
-  srcs:
-    exclude:
-    - "**/ee"
-    - "**/ee/**"
-    - "**/*_ee.*"
-    - "**/*_ee_*.*"
-  env:
-  - GITPOD_OSS_BUILD=true
-  config:
-    go:
-      buildTags:
-      - -tags oss
+  - name: oss
+    components:
+      exclude:
+        - components/ee/ws-scheduler
+    srcs:
+      exclude:
+        - "**/ee"
+        - "**/ee/**"
+        - "**/*_ee.*"
+        - "**/*_ee_*.*"
+    env:
+      - GITPOD_OSS_BUILD=true
+    config:
+      go:
+        buildTags:
+          - -tags oss
