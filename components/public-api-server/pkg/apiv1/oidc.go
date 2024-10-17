@@ -262,15 +262,6 @@ func (s *OIDCService) UpdateClientConfig(ctx context.Context, req *connect.Reque
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to update OIDC Client Config %s", clientConfigID.String()))
 	}
 
-	if err = db.DeactivateClientConfig(ctx, s.dbConn, clientConfigID); err != nil {
-		if errors.Is(err, db.ErrorNotFound) {
-			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("OIDC Client Config %s does not exist", clientConfigID.String()))
-		}
-
-		log.Extract(ctx).WithError(err).Error("Failed to deactivate OIDC Client config.")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to deactivate OIDC Client Config %s", clientConfigID.String()))
-	}
-
 	return connect.NewResponse(&v1.UpdateClientConfigResponse{}), nil
 }
 
@@ -310,6 +301,56 @@ func (s *OIDCService) DeleteClientConfig(ctx context.Context, req *connect.Reque
 	}
 
 	return connect.NewResponse(&v1.DeleteClientConfigResponse{}), nil
+}
+
+func (s *OIDCService) SetClientConfigActivation(ctx context.Context, req *connect.Request[v1.SetClientConfigActivationRequest]) (*connect.Response[v1.SetClientConfigActivationResponse], error) {
+	organizationID, err := validateOrganizationID(ctx, req.Msg.GetOrganizationId())
+	if err != nil {
+		return nil, err
+	}
+
+	clientConfigID, err := validateOIDCClientConfigID(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := s.getConnection(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, userID, err := s.getUser(ctx, conn)
+	if err != nil {
+		return nil, err
+	}
+
+	if authorizationErr := s.userIsOrgOwner(ctx, userID, organizationID); authorizationErr != nil {
+		return nil, authorizationErr
+	}
+
+	config, err := db.GetOIDCClientConfig(ctx, s.dbConn, clientConfigID)
+	if err != nil {
+		if errors.Is(err, db.ErrorNotFound) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("OIDC Client Config %s for Organization %s does not exist", clientConfigID.String(), organizationID.String()))
+		}
+
+		return nil, err
+	}
+
+	if req.Msg.Activate {
+		if config.Verified == nil || !*config.Verified {
+			log.Extract(ctx).WithError(err).Error("Failed to activate an unverified OIDC Client Config.")
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("Failed to activate an unverified OIDC Client Config %s for Organization %s", clientConfigID.String(), organizationID.String()))
+		}
+	}
+
+	err = db.SetClientConfigActiviation(ctx, s.dbConn, clientConfigID, req.Msg.Activate)
+	if err != nil {
+		log.Extract(ctx).WithError(err).Error("Failed to set OIDC Client Config activation.")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to set OIDC Client Config activation (ID: %s) for Organization %s", clientConfigID.String(), organizationID.String()))
+	}
+
+	return connect.NewResponse(&v1.SetClientConfigActivationResponse{}), nil
 }
 
 func (s *OIDCService) getConnection(ctx context.Context) (protocol.APIInterface, error) {
@@ -371,7 +412,7 @@ func (s *OIDCService) isFeatureEnabled(ctx context.Context, conn protocol.APIInt
 }
 
 func (s *OIDCService) userIsOrgOwner(ctx context.Context, userID, orgID uuid.UUID) error {
-	membership, err := db.GetTeamMembership(ctx, s.dbConn, userID, orgID)
+	membership, err := db.GetOrganizationMembership(ctx, s.dbConn, userID, orgID)
 	if err != nil {
 		if errors.Is(err, db.ErrorNotFound) {
 			return connect.NewError(connect.CodeNotFound, fmt.Errorf("Organization %s does not exist", orgID.String()))
@@ -380,7 +421,7 @@ func (s *OIDCService) userIsOrgOwner(ctx context.Context, userID, orgID uuid.UUI
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("Failed to verify user %s is owner of organization %s", userID.String(), orgID.String()))
 	}
 
-	if membership.Role != db.TeamMembershipRole_Owner {
+	if membership.Role != db.OrganizationMembershipRole_Owner {
 		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("user %s is not owner of organization %s", userID.String(), orgID.String()))
 	}
 
@@ -401,11 +442,14 @@ func dbOIDCClientConfigToAPI(config db.OIDCClientConfig, decryptor db.Decryptor)
 			ClientSecret:          "REDACTED",
 			AuthorizationEndpoint: decrypted.RedirectURL,
 			Scopes:                decrypted.Scopes,
+			CelExpression:         decrypted.CelExpression,
+			UsePkce:               decrypted.UsePKCE,
 		},
 		OidcConfig: &v1.OIDCConfig{
 			Issuer: config.Issuer,
 		},
-		Active: config.Active,
+		Active:   config.Active,
+		Verified: config.Verified != nil && *config.Verified,
 	}, nil
 }
 
@@ -426,10 +470,12 @@ func dbOIDCClientConfigsToAPI(configs []db.OIDCClientConfig, decryptor db.Decryp
 
 func toDbOIDCSpec(oauth2Config *v1.OAuth2Config) db.OIDCSpec {
 	return db.OIDCSpec{
-		ClientID:     oauth2Config.GetClientId(),
-		ClientSecret: oauth2Config.GetClientSecret(),
-		RedirectURL:  oauth2Config.GetAuthorizationEndpoint(),
-		Scopes:       append([]string{goidc.ScopeOpenID, "profile", "email"}, oauth2Config.GetScopes()...),
+		ClientID:      oauth2Config.GetClientId(),
+		ClientSecret:  oauth2Config.GetClientSecret(),
+		CelExpression: oauth2Config.GetCelExpression(),
+		UsePKCE:       oauth2Config.GetUsePkce(),
+		RedirectURL:   oauth2Config.GetAuthorizationEndpoint(),
+		Scopes:        append([]string{goidc.ScopeOpenID, "profile", "email"}, oauth2Config.GetScopes()...),
 	}
 }
 

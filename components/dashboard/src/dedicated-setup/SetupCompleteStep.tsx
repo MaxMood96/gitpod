@@ -5,25 +5,36 @@
  */
 
 import { FC, useCallback, useState } from "react";
-import { Button } from "../components/Button";
+import { Button } from "@podkit/buttons/Button";
 import { Heading1, Subheading } from "../components/typography/headings";
 import Tooltip from "../components/Tooltip";
 import copy from "../images/copy.svg";
 import { copyToClipboard } from "../utils";
 import { SetupLayout } from "./SetupLayout";
+import { useTemporaryState } from "../hooks/use-temporary-value";
 
 type Props = {
     onComplete: () => void;
 };
 export const SetupCompleteStep: FC<Props> = ({ onComplete }) => {
     const url = document.location.origin;
-    const [copied, setCopied] = useState(false);
+    const [copied, setCopied] = useTemporaryState(false, 2000);
+    const [copyError, setCopyError] = useState<string | undefined>();
 
     const handleCopyToClipboard = useCallback(() => {
-        copyToClipboard(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    }, [url]);
+        copyToClipboard(url)
+            .then(() => setCopied(true))
+            .catch((error) => {
+                if (error instanceof DOMException) {
+                    setCopyError(
+                        "Gitpod is not allowed to copy to clipboard. Please copy the URL manually or adjust your browser permissions.",
+                    );
+                    return;
+                }
+
+                setCopyError("Failed to copy to clipboard. Please copy the URL manually.");
+            });
+    }, [setCopied, url]);
 
     return (
         <SetupLayout showOrg noMaxWidth>
@@ -43,8 +54,10 @@ export const SetupCompleteStep: FC<Props> = ({ onComplete }) => {
                 </div>
             </div>
 
+            <div className="my-4 text-pk-content-danger">{copyError && <p>{copyError}</p>}</div>
+
             <div className="mt-6 max-w-md">
-                <Button size="block" onClick={onComplete}>
+                <Button className="w-full" onClick={onComplete}>
                     Add a Git Integration
                 </Button>
             </div>

@@ -6,7 +6,7 @@
 
 import { FC, useCallback, useState } from "react";
 import Alert from "../components/Alert";
-import { Button } from "../components/Button";
+import { Button } from "@podkit/buttons/Button";
 import { TextInputField } from "../components/forms/TextInputField";
 import { useOnBlurError } from "../hooks/use-onblur-error";
 import { openOIDCStartWindow } from "../provider-utils";
@@ -19,19 +19,26 @@ type Props = {
 };
 
 function getOrgSlugFromPath(path: string) {
-    return path.split("/")[2];
+    // '/login/acme' => ['', 'login', 'acme']
+    const pathSegments = path.split("/");
+    if (pathSegments[1] !== "login") {
+        return;
+    }
+    return pathSegments[2];
 }
 
 export const SSOLoginForm: FC<Props> = ({ singleOrgMode, onSuccess }) => {
     const location = useLocation();
+
     const [orgSlug, setOrgSlug] = useState(
         getOrgSlugFromPath(location.pathname) || window.localStorage.getItem("sso-org-slug") || "",
     );
     const [error, setError] = useState("");
+
     const oidcServiceEnabled = useFeatureFlag("oidcServiceEnabled");
 
     const openLoginWithSSO = useCallback(
-        async (e) => {
+        async (e: React.FormEvent<HTMLFormElement>) => {
             e.preventDefault();
             window.localStorage.setItem("sso-org-slug", orgSlug.trim());
 
@@ -68,11 +75,11 @@ export const SSOLoginForm: FC<Props> = ({ singleOrgMode, onSuccess }) => {
 
     return (
         <form onSubmit={openLoginWithSSO}>
-            <div className="mt-10 space-y-2">
+            <div className="mt-10 space-y-2 w-56">
                 {!singleOrgMode && (
                     <TextInputField
                         label="Organization Slug"
-                        placeholder="my-company"
+                        placeholder="my-organization"
                         value={orgSlug}
                         onChange={setOrgSlug}
                         error={slugError.message}
@@ -80,8 +87,9 @@ export const SSOLoginForm: FC<Props> = ({ singleOrgMode, onSuccess }) => {
                     />
                 )}
                 <Button
+                    type="submit"
                     className="w-full"
-                    type="secondary"
+                    variant="secondary"
                     disabled={!singleOrgMode && (!orgSlug.trim() || !slugError.isValid)}
                 >
                     Continue {singleOrgMode ? "" : "with SSO"}

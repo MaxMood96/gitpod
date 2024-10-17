@@ -4,65 +4,39 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
-import { Organization, OrgMemberInfo, User } from "@gitpod/gitpod-protocol";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useLocation } from "react-router";
-import { publicApiTeamMembersToProtocol, publicApiTeamToProtocol, teamsService } from "../../service/public-api";
+import { organizationClient } from "../../service/public-api";
 import { useCurrentUser } from "../../user-context";
-import { getUserBillingModeQueryKey } from "../billing-mode/user-billing-mode-query";
 import { noPersistence } from "../setup";
-
-export interface OrganizationInfo extends Organization {
-    members: OrgMemberInfo[];
-    isOwner: boolean;
-    invitationId?: string;
-}
+import { Organization } from "@gitpod/public-api/lib/gitpod/v1/organization_pb";
 
 export function useOrganizationsInvalidator() {
     const user = useCurrentUser();
+
     const queryClient = useQueryClient();
     return useCallback(() => {
-        console.log("Invalidating orgs... " + JSON.stringify(getQueryKey(user)));
-        queryClient.invalidateQueries(getQueryKey(user));
-    }, [user, queryClient]);
+        console.log("Invalidating orgs... " + JSON.stringify(getQueryKey(user?.id)));
+        queryClient.invalidateQueries(getQueryKey(user?.id));
+    }, [user?.id, queryClient]);
 }
 
 export function useOrganizations() {
     const user = useCurrentUser();
-    const queryClient = useQueryClient();
-    const query = useQuery<OrganizationInfo[], Error>(
-        getQueryKey(user),
+    const query = useQuery<Organization[], Error>(
+        getQueryKey(user?.id),
         async () => {
-            console.log("Fetching orgs... " + JSON.stringify(getQueryKey(user)));
+            console.log("Fetching orgs... " + JSON.stringify(getQueryKey(user?.id)));
             if (!user) {
                 console.log("useOrganizations with empty user");
                 return [];
             }
 
-            const response = await teamsService.listTeams({});
-            const result: OrganizationInfo[] = [];
-            for (const org of response.teams) {
-                const members = publicApiTeamMembersToProtocol(org.members || []);
-                const isOwner = members.some((m) => m.role === "owner" && m.userId === user?.id);
-                result.push({
-                    ...publicApiTeamToProtocol(org),
-                    members,
-                    isOwner,
-                    invitationId: org.teamInvitation?.id,
-                });
-            }
-            return result;
+            const response = await organizationClient.listOrganizations({});
+            return response.organizations;
         },
         {
-            onSuccess: (data) => {
-                if (!user) {
-                    return;
-                }
-
-                // refresh user billing mode to update the billing mode in the user context as it depends on the orgs
-                queryClient.invalidateQueries(getUserBillingModeQueryKey(user.id));
-            },
             enabled: !!user,
             cacheTime: 1000 * 60 * 60 * 1, // 1 hour
             staleTime: 1000 * 60 * 60 * 1, // 1 hour
@@ -73,12 +47,12 @@ export function useOrganizations() {
     return query;
 }
 
-function getQueryKey(user?: User) {
-    return noPersistence(["organizations", user?.id]);
+function getQueryKey(userId?: string) {
+    return noPersistence(["organizations", userId]);
 }
 
 // Custom hook to return the current org if one is selected
-export function useCurrentOrg(): { data?: OrganizationInfo; isLoading: boolean } {
+export function useCurrentOrg(): { data?: Organization; isLoading: boolean } {
     const location = useLocation();
     const orgs = useOrganizations();
     const user = useCurrentUser();
@@ -92,8 +66,7 @@ export function useCurrentOrg(): { data?: OrganizationInfo; isLoading: boolean }
         orgId = orgIdParam;
     }
     let org = orgs.data.find((org) => org.id === orgId);
-    if (!org && user?.additionalData?.isMigratedToTeamOnlyAttribution) {
-        // if the user is migrated to team-only attribution, we return the first org
+    if (!org) {
         org = orgs.data[0];
     }
     if (org) {

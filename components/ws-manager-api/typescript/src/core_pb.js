@@ -48,6 +48,7 @@ goog.exportSymbol('proto.wsman.IDEImage', null, global);
 goog.exportSymbol('proto.wsman.MarkActiveRequest', null, global);
 goog.exportSymbol('proto.wsman.MarkActiveResponse', null, global);
 goog.exportSymbol('proto.wsman.MetadataFilter', null, global);
+goog.exportSymbol('proto.wsman.PortProtocol', null, global);
 goog.exportSymbol('proto.wsman.PortSpec', null, global);
 goog.exportSymbol('proto.wsman.PortVisibility', null, global);
 goog.exportSymbol('proto.wsman.SSHPublicKeys', null, global);
@@ -5787,9 +5788,7 @@ proto.wsman.IDEImage.prototype.toObject = function(opt_includeInstance) {
 proto.wsman.IDEImage.toObject = function(includeInstance, msg) {
   var f, obj = {
     webRef: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    desktopRef: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    supervisorRef: jspb.Message.getFieldWithDefault(msg, 3, ""),
-    desktopPluginRef: jspb.Message.getFieldWithDefault(msg, 4, "")
+    supervisorRef: jspb.Message.getFieldWithDefault(msg, 3, "")
   };
 
   if (includeInstance) {
@@ -5830,17 +5829,9 @@ proto.wsman.IDEImage.deserializeBinaryFromReader = function(msg, reader) {
       var value = /** @type {string} */ (reader.readString());
       msg.setWebRef(value);
       break;
-    case 2:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setDesktopRef(value);
-      break;
     case 3:
       var value = /** @type {string} */ (reader.readString());
       msg.setSupervisorRef(value);
-      break;
-    case 4:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setDesktopPluginRef(value);
       break;
     default:
       reader.skipField();
@@ -5878,24 +5869,10 @@ proto.wsman.IDEImage.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getDesktopRef();
-  if (f.length > 0) {
-    writer.writeString(
-      2,
-      f
-    );
-  }
   f = message.getSupervisorRef();
   if (f.length > 0) {
     writer.writeString(
       3,
-      f
-    );
-  }
-  f = message.getDesktopPluginRef();
-  if (f.length > 0) {
-    writer.writeString(
-      4,
       f
     );
   }
@@ -5921,24 +5898,6 @@ proto.wsman.IDEImage.prototype.setWebRef = function(value) {
 
 
 /**
- * optional string desktop_ref = 2;
- * @return {string}
- */
-proto.wsman.IDEImage.prototype.getDesktopRef = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.wsman.IDEImage} returns this
- */
-proto.wsman.IDEImage.prototype.setDesktopRef = function(value) {
-  return jspb.Message.setProto3StringField(this, 2, value);
-};
-
-
-/**
  * optional string supervisor_ref = 3;
  * @return {string}
  */
@@ -5953,24 +5912,6 @@ proto.wsman.IDEImage.prototype.getSupervisorRef = function() {
  */
 proto.wsman.IDEImage.prototype.setSupervisorRef = function(value) {
   return jspb.Message.setProto3StringField(this, 3, value);
-};
-
-
-/**
- * optional string desktop_plugin_ref = 4;
- * @return {string}
- */
-proto.wsman.IDEImage.prototype.getDesktopPluginRef = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.wsman.IDEImage} returns this
- */
-proto.wsman.IDEImage.prototype.setDesktopPluginRef = function(value) {
-  return jspb.Message.setProto3StringField(this, 4, value);
 };
 
 
@@ -6014,7 +5955,6 @@ proto.wsman.WorkspaceSpec.prototype.toObject = function(opt_includeInstance) {
 proto.wsman.WorkspaceSpec.toObject = function(includeInstance, msg) {
   var f, obj = {
     workspaceImage: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    deprecatedIdeImage: jspb.Message.getFieldWithDefault(msg, 2, ""),
     headless: jspb.Message.getBooleanFieldWithDefault(msg, 3, false),
     url: jspb.Message.getFieldWithDefault(msg, 4, ""),
     exposedPortsList: jspb.Message.toObjectList(msg.getExposedPortsList(),
@@ -6064,10 +6004,6 @@ proto.wsman.WorkspaceSpec.deserializeBinaryFromReader = function(msg, reader) {
     case 1:
       var value = /** @type {string} */ (reader.readString());
       msg.setWorkspaceImage(value);
-      break;
-    case 2:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setDeprecatedIdeImage(value);
       break;
     case 3:
       var value = /** @type {boolean} */ (reader.readBool());
@@ -6140,13 +6076,6 @@ proto.wsman.WorkspaceSpec.serializeBinaryToWriter = function(message, writer) {
   if (f.length > 0) {
     writer.writeString(
       1,
-      f
-    );
-  }
-  f = message.getDeprecatedIdeImage();
-  if (f.length > 0) {
-    writer.writeString(
-      2,
       f
     );
   }
@@ -6233,24 +6162,6 @@ proto.wsman.WorkspaceSpec.prototype.getWorkspaceImage = function() {
  */
 proto.wsman.WorkspaceSpec.prototype.setWorkspaceImage = function(value) {
   return jspb.Message.setProto3StringField(this, 1, value);
-};
-
-
-/**
- * optional string deprecated_ide_image = 2;
- * @return {string}
- */
-proto.wsman.WorkspaceSpec.prototype.getDeprecatedIdeImage = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.wsman.WorkspaceSpec} returns this
- */
-proto.wsman.WorkspaceSpec.prototype.setDeprecatedIdeImage = function(value) {
-  return jspb.Message.setProto3StringField(this, 2, value);
 };
 
 
@@ -6508,7 +6419,8 @@ proto.wsman.PortSpec.toObject = function(includeInstance, msg) {
   var f, obj = {
     port: jspb.Message.getFieldWithDefault(msg, 1, 0),
     visibility: jspb.Message.getFieldWithDefault(msg, 3, 0),
-    url: jspb.Message.getFieldWithDefault(msg, 4, "")
+    url: jspb.Message.getFieldWithDefault(msg, 4, ""),
+    protocol: jspb.Message.getFieldWithDefault(msg, 5, 0)
   };
 
   if (includeInstance) {
@@ -6557,6 +6469,10 @@ proto.wsman.PortSpec.deserializeBinaryFromReader = function(msg, reader) {
       var value = /** @type {string} */ (reader.readString());
       msg.setUrl(value);
       break;
+    case 5:
+      var value = /** @type {!proto.wsman.PortProtocol} */ (reader.readEnum());
+      msg.setProtocol(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -6604,6 +6520,13 @@ proto.wsman.PortSpec.serializeBinaryToWriter = function(message, writer) {
   if (f.length > 0) {
     writer.writeString(
       4,
+      f
+    );
+  }
+  f = message.getProtocol();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      5,
       f
     );
   }
@@ -6661,6 +6584,24 @@ proto.wsman.PortSpec.prototype.getUrl = function() {
  */
 proto.wsman.PortSpec.prototype.setUrl = function(value) {
   return jspb.Message.setProto3StringField(this, 4, value);
+};
+
+
+/**
+ * optional PortProtocol protocol = 5;
+ * @return {!proto.wsman.PortProtocol}
+ */
+proto.wsman.PortSpec.prototype.getProtocol = function() {
+  return /** @type {!proto.wsman.PortProtocol} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
+};
+
+
+/**
+ * @param {!proto.wsman.PortProtocol} value
+ * @return {!proto.wsman.PortSpec} returns this
+ */
+proto.wsman.PortSpec.prototype.setProtocol = function(value) {
+  return jspb.Message.setProto3EnumField(this, 5, value);
 };
 
 
@@ -8056,7 +7997,6 @@ proto.wsman.StartWorkspaceSpec.prototype.toObject = function(opt_includeInstance
 proto.wsman.StartWorkspaceSpec.toObject = function(includeInstance, msg) {
   var f, obj = {
     workspaceImage: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    deprecatedIdeImage: jspb.Message.getFieldWithDefault(msg, 2, ""),
     featureFlagsList: (f = jspb.Message.getRepeatedField(msg, 3)) == null ? undefined : f,
     initializer: (f = msg.getInitializer()) && content$service$api_initializer_pb.WorkspaceInitializer.toObject(includeInstance, f),
     portsList: jspb.Message.toObjectList(msg.getPortsList(),
@@ -8069,12 +8009,12 @@ proto.wsman.StartWorkspaceSpec.toObject = function(includeInstance, msg) {
     admission: jspb.Message.getFieldWithDefault(msg, 11, 0),
     ideImage: (f = msg.getIdeImage()) && proto.wsman.IDEImage.toObject(includeInstance, f),
     pb_class: jspb.Message.getFieldWithDefault(msg, 13, ""),
-    volumeSnapshot: (f = msg.getVolumeSnapshot()) && proto.wsman.VolumeSnapshotInfo.toObject(includeInstance, f),
     sshPublicKeysList: (f = jspb.Message.getRepeatedField(msg, 15)) == null ? undefined : f,
     sysEnvvarsList: jspb.Message.toObjectList(msg.getSysEnvvarsList(),
     proto.wsman.EnvironmentVariable.toObject, includeInstance),
     ideImageLayersList: (f = jspb.Message.getRepeatedField(msg, 17)) == null ? undefined : f,
-    closedTimeout: jspb.Message.getFieldWithDefault(msg, 18, "")
+    closedTimeout: jspb.Message.getFieldWithDefault(msg, 18, ""),
+    maximumLifetime: jspb.Message.getFieldWithDefault(msg, 19, "")
   };
 
   if (includeInstance) {
@@ -8114,10 +8054,6 @@ proto.wsman.StartWorkspaceSpec.deserializeBinaryFromReader = function(msg, reade
     case 1:
       var value = /** @type {string} */ (reader.readString());
       msg.setWorkspaceImage(value);
-      break;
-    case 2:
-      var value = /** @type {string} */ (reader.readString());
-      msg.setDeprecatedIdeImage(value);
       break;
     case 3:
       var values = /** @type {!Array<!proto.wsman.WorkspaceFeatureFlag>} */ (reader.isDelimited() ? reader.readPackedEnum() : [reader.readEnum()]);
@@ -8166,11 +8102,6 @@ proto.wsman.StartWorkspaceSpec.deserializeBinaryFromReader = function(msg, reade
       var value = /** @type {string} */ (reader.readString());
       msg.setClass(value);
       break;
-    case 14:
-      var value = new proto.wsman.VolumeSnapshotInfo;
-      reader.readMessage(value,proto.wsman.VolumeSnapshotInfo.deserializeBinaryFromReader);
-      msg.setVolumeSnapshot(value);
-      break;
     case 15:
       var value = /** @type {string} */ (reader.readString());
       msg.addSshPublicKeys(value);
@@ -8187,6 +8118,10 @@ proto.wsman.StartWorkspaceSpec.deserializeBinaryFromReader = function(msg, reade
     case 18:
       var value = /** @type {string} */ (reader.readString());
       msg.setClosedTimeout(value);
+      break;
+    case 19:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setMaximumLifetime(value);
       break;
     default:
       reader.skipField();
@@ -8221,13 +8156,6 @@ proto.wsman.StartWorkspaceSpec.serializeBinaryToWriter = function(message, write
   if (f.length > 0) {
     writer.writeString(
       1,
-      f
-    );
-  }
-  f = message.getDeprecatedIdeImage();
-  if (f.length > 0) {
-    writer.writeString(
-      2,
       f
     );
   }
@@ -8306,14 +8234,6 @@ proto.wsman.StartWorkspaceSpec.serializeBinaryToWriter = function(message, write
       f
     );
   }
-  f = message.getVolumeSnapshot();
-  if (f != null) {
-    writer.writeMessage(
-      14,
-      f,
-      proto.wsman.VolumeSnapshotInfo.serializeBinaryToWriter
-    );
-  }
   f = message.getSshPublicKeysList();
   if (f.length > 0) {
     writer.writeRepeatedString(
@@ -8343,6 +8263,13 @@ proto.wsman.StartWorkspaceSpec.serializeBinaryToWriter = function(message, write
       f
     );
   }
+  f = message.getMaximumLifetime();
+  if (f.length > 0) {
+    writer.writeString(
+      19,
+      f
+    );
+  }
 };
 
 
@@ -8361,24 +8288,6 @@ proto.wsman.StartWorkspaceSpec.prototype.getWorkspaceImage = function() {
  */
 proto.wsman.StartWorkspaceSpec.prototype.setWorkspaceImage = function(value) {
   return jspb.Message.setProto3StringField(this, 1, value);
-};
-
-
-/**
- * optional string deprecated_ide_image = 2;
- * @return {string}
- */
-proto.wsman.StartWorkspaceSpec.prototype.getDeprecatedIdeImage = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
-};
-
-
-/**
- * @param {string} value
- * @return {!proto.wsman.StartWorkspaceSpec} returns this
- */
-proto.wsman.StartWorkspaceSpec.prototype.setDeprecatedIdeImage = function(value) {
-  return jspb.Message.setProto3StringField(this, 2, value);
 };
 
 
@@ -8679,43 +8588,6 @@ proto.wsman.StartWorkspaceSpec.prototype.setClass = function(value) {
 
 
 /**
- * optional VolumeSnapshotInfo volume_snapshot = 14;
- * @return {?proto.wsman.VolumeSnapshotInfo}
- */
-proto.wsman.StartWorkspaceSpec.prototype.getVolumeSnapshot = function() {
-  return /** @type{?proto.wsman.VolumeSnapshotInfo} */ (
-    jspb.Message.getWrapperField(this, proto.wsman.VolumeSnapshotInfo, 14));
-};
-
-
-/**
- * @param {?proto.wsman.VolumeSnapshotInfo|undefined} value
- * @return {!proto.wsman.StartWorkspaceSpec} returns this
-*/
-proto.wsman.StartWorkspaceSpec.prototype.setVolumeSnapshot = function(value) {
-  return jspb.Message.setWrapperField(this, 14, value);
-};
-
-
-/**
- * Clears the message field making it undefined.
- * @return {!proto.wsman.StartWorkspaceSpec} returns this
- */
-proto.wsman.StartWorkspaceSpec.prototype.clearVolumeSnapshot = function() {
-  return this.setVolumeSnapshot(undefined);
-};
-
-
-/**
- * Returns whether this field is set.
- * @return {boolean}
- */
-proto.wsman.StartWorkspaceSpec.prototype.hasVolumeSnapshot = function() {
-  return jspb.Message.getField(this, 14) != null;
-};
-
-
-/**
  * repeated string ssh_public_keys = 15;
  * @return {!Array<string>}
  */
@@ -8842,6 +8714,24 @@ proto.wsman.StartWorkspaceSpec.prototype.getClosedTimeout = function() {
  */
 proto.wsman.StartWorkspaceSpec.prototype.setClosedTimeout = function(value) {
   return jspb.Message.setProto3StringField(this, 18, value);
+};
+
+
+/**
+ * optional string maximum_lifetime = 19;
+ * @return {string}
+ */
+proto.wsman.StartWorkspaceSpec.prototype.getMaximumLifetime = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 19, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.wsman.StartWorkspaceSpec} returns this
+ */
+proto.wsman.StartWorkspaceSpec.prototype.setMaximumLifetime = function(value) {
+  return jspb.Message.setProto3StringField(this, 19, value);
 };
 
 
@@ -9832,8 +9722,9 @@ proto.wsman.DescribeClusterResponse.prototype.toObject = function(opt_includeIns
  */
 proto.wsman.DescribeClusterResponse.toObject = function(includeInstance, msg) {
   var f, obj = {
-    workspaceclassesList: jspb.Message.toObjectList(msg.getWorkspaceclassesList(),
-    proto.wsman.WorkspaceClass.toObject, includeInstance)
+    workspaceClassesList: jspb.Message.toObjectList(msg.getWorkspaceClassesList(),
+    proto.wsman.WorkspaceClass.toObject, includeInstance),
+    preferredWorkspaceClass: jspb.Message.getFieldWithDefault(msg, 2, "")
   };
 
   if (includeInstance) {
@@ -9873,7 +9764,11 @@ proto.wsman.DescribeClusterResponse.deserializeBinaryFromReader = function(msg, 
     case 1:
       var value = new proto.wsman.WorkspaceClass;
       reader.readMessage(value,proto.wsman.WorkspaceClass.deserializeBinaryFromReader);
-      msg.addWorkspaceclasses(value);
+      msg.addWorkspaceClasses(value);
+      break;
+    case 2:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setPreferredWorkspaceClass(value);
       break;
     default:
       reader.skipField();
@@ -9904,7 +9799,7 @@ proto.wsman.DescribeClusterResponse.prototype.serializeBinary = function() {
  */
 proto.wsman.DescribeClusterResponse.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getWorkspaceclassesList();
+  f = message.getWorkspaceClassesList();
   if (f.length > 0) {
     writer.writeRepeatedMessage(
       1,
@@ -9912,14 +9807,21 @@ proto.wsman.DescribeClusterResponse.serializeBinaryToWriter = function(message, 
       proto.wsman.WorkspaceClass.serializeBinaryToWriter
     );
   }
+  f = message.getPreferredWorkspaceClass();
+  if (f.length > 0) {
+    writer.writeString(
+      2,
+      f
+    );
+  }
 };
 
 
 /**
- * repeated WorkspaceClass WorkspaceClasses = 1;
+ * repeated WorkspaceClass workspace_classes = 1;
  * @return {!Array<!proto.wsman.WorkspaceClass>}
  */
-proto.wsman.DescribeClusterResponse.prototype.getWorkspaceclassesList = function() {
+proto.wsman.DescribeClusterResponse.prototype.getWorkspaceClassesList = function() {
   return /** @type{!Array<!proto.wsman.WorkspaceClass>} */ (
     jspb.Message.getRepeatedWrapperField(this, proto.wsman.WorkspaceClass, 1));
 };
@@ -9929,7 +9831,7 @@ proto.wsman.DescribeClusterResponse.prototype.getWorkspaceclassesList = function
  * @param {!Array<!proto.wsman.WorkspaceClass>} value
  * @return {!proto.wsman.DescribeClusterResponse} returns this
 */
-proto.wsman.DescribeClusterResponse.prototype.setWorkspaceclassesList = function(value) {
+proto.wsman.DescribeClusterResponse.prototype.setWorkspaceClassesList = function(value) {
   return jspb.Message.setRepeatedWrapperField(this, 1, value);
 };
 
@@ -9939,7 +9841,7 @@ proto.wsman.DescribeClusterResponse.prototype.setWorkspaceclassesList = function
  * @param {number=} opt_index
  * @return {!proto.wsman.WorkspaceClass}
  */
-proto.wsman.DescribeClusterResponse.prototype.addWorkspaceclasses = function(opt_value, opt_index) {
+proto.wsman.DescribeClusterResponse.prototype.addWorkspaceClasses = function(opt_value, opt_index) {
   return jspb.Message.addToRepeatedWrapperField(this, 1, opt_value, proto.wsman.WorkspaceClass, opt_index);
 };
 
@@ -9948,8 +9850,26 @@ proto.wsman.DescribeClusterResponse.prototype.addWorkspaceclasses = function(opt
  * Clears the list making it empty but non-null.
  * @return {!proto.wsman.DescribeClusterResponse} returns this
  */
-proto.wsman.DescribeClusterResponse.prototype.clearWorkspaceclassesList = function() {
-  return this.setWorkspaceclassesList([]);
+proto.wsman.DescribeClusterResponse.prototype.clearWorkspaceClassesList = function() {
+  return this.setWorkspaceClassesList([]);
+};
+
+
+/**
+ * optional string preferred_workspace_class = 2;
+ * @return {string}
+ */
+proto.wsman.DescribeClusterResponse.prototype.getPreferredWorkspaceClass = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.wsman.DescribeClusterResponse} returns this
+ */
+proto.wsman.DescribeClusterResponse.prototype.setPreferredWorkspaceClass = function(value) {
+  return jspb.Message.setProto3StringField(this, 2, value);
 };
 
 
@@ -9986,7 +9906,9 @@ proto.wsman.WorkspaceClass.prototype.toObject = function(opt_includeInstance) {
 proto.wsman.WorkspaceClass.toObject = function(includeInstance, msg) {
   var f, obj = {
     id: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    displayname: jspb.Message.getFieldWithDefault(msg, 2, "")
+    displayName: jspb.Message.getFieldWithDefault(msg, 2, ""),
+    description: jspb.Message.getFieldWithDefault(msg, 3, ""),
+    creditsPerMinute: jspb.Message.getFloatingPointFieldWithDefault(msg, 4, 0.0)
   };
 
   if (includeInstance) {
@@ -10029,7 +9951,15 @@ proto.wsman.WorkspaceClass.deserializeBinaryFromReader = function(msg, reader) {
       break;
     case 2:
       var value = /** @type {string} */ (reader.readString());
-      msg.setDisplayname(value);
+      msg.setDisplayName(value);
+      break;
+    case 3:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setDescription(value);
+      break;
+    case 4:
+      var value = /** @type {number} */ (reader.readFloat());
+      msg.setCreditsPerMinute(value);
       break;
     default:
       reader.skipField();
@@ -10067,10 +9997,24 @@ proto.wsman.WorkspaceClass.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getDisplayname();
+  f = message.getDisplayName();
   if (f.length > 0) {
     writer.writeString(
       2,
+      f
+    );
+  }
+  f = message.getDescription();
+  if (f.length > 0) {
+    writer.writeString(
+      3,
+      f
+    );
+  }
+  f = message.getCreditsPerMinute();
+  if (f !== 0.0) {
+    writer.writeFloat(
+      4,
       f
     );
   }
@@ -10078,7 +10022,7 @@ proto.wsman.WorkspaceClass.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * optional string Id = 1;
+ * optional string id = 1;
  * @return {string}
  */
 proto.wsman.WorkspaceClass.prototype.getId = function() {
@@ -10096,10 +10040,10 @@ proto.wsman.WorkspaceClass.prototype.setId = function(value) {
 
 
 /**
- * optional string DisplayName = 2;
+ * optional string display_name = 2;
  * @return {string}
  */
-proto.wsman.WorkspaceClass.prototype.getDisplayname = function() {
+proto.wsman.WorkspaceClass.prototype.getDisplayName = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
 };
 
@@ -10108,8 +10052,44 @@ proto.wsman.WorkspaceClass.prototype.getDisplayname = function() {
  * @param {string} value
  * @return {!proto.wsman.WorkspaceClass} returns this
  */
-proto.wsman.WorkspaceClass.prototype.setDisplayname = function(value) {
+proto.wsman.WorkspaceClass.prototype.setDisplayName = function(value) {
   return jspb.Message.setProto3StringField(this, 2, value);
+};
+
+
+/**
+ * optional string description = 3;
+ * @return {string}
+ */
+proto.wsman.WorkspaceClass.prototype.getDescription = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.wsman.WorkspaceClass} returns this
+ */
+proto.wsman.WorkspaceClass.prototype.setDescription = function(value) {
+  return jspb.Message.setProto3StringField(this, 3, value);
+};
+
+
+/**
+ * optional float credits_per_minute = 4;
+ * @return {number}
+ */
+proto.wsman.WorkspaceClass.prototype.getCreditsPerMinute = function() {
+  return /** @type {number} */ (jspb.Message.getFloatingPointFieldWithDefault(this, 4, 0.0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.wsman.WorkspaceClass} returns this
+ */
+proto.wsman.WorkspaceClass.prototype.setCreditsPerMinute = function(value) {
+  return jspb.Message.setProto3FloatField(this, 4, value);
 };
 
 
@@ -10149,6 +10129,14 @@ proto.wsman.PortVisibility = {
 /**
  * @enum {number}
  */
+proto.wsman.PortProtocol = {
+  PORT_PROTOCOL_HTTP: 0,
+  PORT_PROTOCOL_HTTPS: 1
+};
+
+/**
+ * @enum {number}
+ */
 proto.wsman.WorkspaceConditionBool = {
   FALSE: 0,
   TRUE: 1,
@@ -10174,11 +10162,9 @@ proto.wsman.WorkspacePhase = {
  */
 proto.wsman.WorkspaceFeatureFlag = {
   NOOP: 0,
-  FULL_WORKSPACE_BACKUP: 4,
-  PERSISTENT_VOLUME_CLAIM: 7,
-  WORKSPACE_CLASS_LIMITING: 9,
   WORKSPACE_CONNECTION_LIMITING: 10,
-  WORKSPACE_PSI: 11
+  WORKSPACE_PSI: 11,
+  SSH_CA: 12
 };
 
 /**

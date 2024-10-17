@@ -93,6 +93,7 @@ func deployment(ctx *common.RenderContext) ([]runtime.Object, error) {
 		}
 	}
 
+	//nolint:typecheck
 	configHash, err := common.ObjectHash(hashObj, nil)
 	if err != nil {
 		return nil, err
@@ -238,6 +239,9 @@ func deployment(ctx *common.RenderContext) ([]runtime.Object, error) {
 							}, prometheusPort, {
 								ContainerPort: ContainerAnalyticsPort,
 								Name:          ContainerAnalyticsName,
+							}, {
+								ContainerPort: ContainerConfigcatPort,
+								Name:          ContainerConfigcatName,
 							}},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged:               pointer.Bool(false),
