@@ -4,7 +4,7 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
-import * as jsonwebtoken from "jsonwebtoken";
+import jsonwebtoken from "jsonwebtoken";
 import { Config } from "../config";
 import { inject, injectable, postConstruct } from "inversify";
 import { AuthFlow } from "./auth-provider";
@@ -32,7 +32,7 @@ export class AuthJWT {
         return sign(payload, this.config.auth.pki.signing.privateKey, opts);
     }
 
-    async verify(encoded: string): Promise<jsonwebtoken.JwtPayload> {
+    async verify(encoded: string): Promise<{ payload: jsonwebtoken.JwtPayload; keyId: string }> {
         const keypairs = [this.config.auth.pki.signing, ...this.config.auth.pki.validating];
         const publicKeysByID = keypairs.reduce<{ [id: string]: string }>((byID, keypair) => {
             byID[keypair.id] = keypair.publicKey;
@@ -57,7 +57,10 @@ export class AuthJWT {
             algorithms: [authJWTAlgorithm],
         });
 
-        return verified;
+        return {
+            payload: verified,
+            keyId: keyID,
+        };
     }
 }
 
@@ -130,7 +133,7 @@ export async function verify(
             if (err || !decoded) {
                 return reject(err);
             }
-            resolve(decoded);
+            resolve(decoded as jsonwebtoken.JwtPayload);
         });
     });
 }

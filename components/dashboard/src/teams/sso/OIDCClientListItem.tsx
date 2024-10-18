@@ -10,15 +10,19 @@ import ConfirmationModal from "../../components/ConfirmationModal";
 import { ContextMenuEntry } from "../../components/ContextMenu";
 import { Item, ItemField, ItemFieldContextMenu, ItemFieldIcon } from "../../components/ItemsList";
 import { useDeleteOIDCClientMutation } from "../../data/oidc-clients/delete-oidc-client-mutation";
-import { gitpodHostUrl } from "../../service/service";
 import { OIDCClientConfigModal } from "./OIDCClientConfigModal";
 import { useToast } from "../../components/toasts/Toasts";
 import { ModalFooterAlert } from "../../components/Modal";
+import Tooltip from "../../components/Tooltip";
 
 type Props = {
     clientConfig: OIDCClientConfig;
+    hasActiveConfig: boolean;
+    onSaved: (configId: string) => void;
+    onVerify: (configId: string) => void;
+    onActivate: (configId: string) => void;
 };
-export const OIDCClientListItem: FC<Props> = ({ clientConfig }) => {
+export const OIDCClientListItem: FC<Props> = ({ clientConfig, hasActiveConfig, onSaved, onVerify, onActivate }) => {
     const { toast } = useToast();
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -27,18 +31,25 @@ export const OIDCClientListItem: FC<Props> = ({ clientConfig }) => {
     const menuEntries = useMemo(() => {
         const result: ContextMenuEntry[] = [
             {
-                title: "Edit",
+                title: clientConfig.active ? "View" : "Edit",
                 onClick: () => setShowEditModal(true),
                 separator: true,
             },
-            ...(!clientConfig.active
+            ...(!clientConfig.verified
+                ? [
+                      {
+                          title: "Verify",
+                          onClick: () => onVerify(clientConfig.id),
+                          separator: true,
+                      },
+                  ]
+                : []),
+            ...(!clientConfig.active && clientConfig.verified
                 ? [
                       {
                           title: "Activate",
                           onClick: () => {
-                              window.location.href = gitpodHostUrl
-                                  .with({ pathname: `/iam/oidc/start`, search: `id=${clientConfig.id}&activate=true` })
-                                  .toString();
+                              onActivate(clientConfig.id);
                           },
                           separator: true,
                       },
@@ -51,7 +62,7 @@ export const OIDCClientListItem: FC<Props> = ({ clientConfig }) => {
             },
         ];
         return result;
-    }, [clientConfig]);
+    }, [clientConfig.active, clientConfig.id, clientConfig.verified, onActivate, onVerify]);
 
     const deleteClient = useCallback(async () => {
         try {
@@ -67,14 +78,20 @@ export const OIDCClientListItem: FC<Props> = ({ clientConfig }) => {
         <>
             <Item>
                 <ItemFieldIcon>
-                    <div
-                        className={
-                            "rounded-full w-3 h-3 text-sm align-middle m-auto " +
-                            (clientConfig.active ? "bg-green-500" : "bg-gray-400")
-                        }
-                    >
-                        &nbsp;
-                    </div>
+                    <Tooltip content={clientConfig.active ? "Active" : clientConfig.verified ? "Verified" : "Inactive"}>
+                        <div
+                            className={
+                                "rounded-full w-3 h-3 text-sm align-middle m-auto " +
+                                (clientConfig.active
+                                    ? "bg-green-500"
+                                    : clientConfig.verified
+                                    ? "bg-kumquat-ripe"
+                                    : "bg-gray-400")
+                            }
+                        >
+                            &nbsp;
+                        </div>
+                    </Tooltip>
                 </ItemFieldIcon>
                 <ItemField className="flex flex-col flex-grow">
                     <span className="font-medium truncate overflow-ellipsis">{clientConfig.oidcConfig?.issuer}</span>
@@ -91,7 +108,6 @@ export const OIDCClientListItem: FC<Props> = ({ clientConfig }) => {
                         description: clientConfig.oauth2Config?.clientId ?? "",
                     }}
                     buttonText="Remove"
-                    buttonLoading={deleteOIDCClient.isLoading}
                     warningText={
                         clientConfig.active
                             ? "Warning, you are about to remove the active SSO configuration. If you continue, SSO will be disabled for your organization and no one, including yourself, will be able to log in."
@@ -109,7 +125,11 @@ export const OIDCClientListItem: FC<Props> = ({ clientConfig }) => {
                 />
             )}
             {showEditModal && (
-                <OIDCClientConfigModal clientConfig={clientConfig} onClose={() => setShowEditModal(false)} />
+                <OIDCClientConfigModal
+                    clientConfig={clientConfig}
+                    onSaved={onSaved}
+                    onClose={() => setShowEditModal(false)}
+                />
             )}
         </>
     );

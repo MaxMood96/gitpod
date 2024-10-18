@@ -138,6 +138,12 @@ spec:
                     port:
                       format: int32
                       type: integer
+                    protocol:
+                      default: Http
+                      enum:
+                      - Http
+                      - Https
+                      type: string
                     visibility:
                       default: Owner
                       enum:
@@ -146,14 +152,21 @@ spec:
                       type: string
                   required:
                   - port
+                  - protocol
                   - visibility
                   type: object
                 minItems: 0
                 type: array
+              sshGatewayCAPublicKey:
+                type: string
               sshPublicKeys:
                 items:
                   type: string
                 type: array
+              storageQuota:
+                description: the XFS quota to enforce on the workspace's /workspace
+                  folder
+                type: integer
               sysEnvVars:
                 items:
                   description: EnvVar represents an environment variable present in
@@ -265,6 +278,9 @@ spec:
               timeout:
                 properties:
                   closed:
+                    pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h)?)+$
+                    type: string
+                  maximumLifetime:
                     pattern: ^([0-9]+(\.[0-9]+)?(ms|s|m|h)?)+$
                     type: string
                   time:
@@ -405,8 +421,8 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{ // Represents the observations of a foo's
-                    current state. // Known .status.conditions.type are: \"Available\",
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
                     \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
                     // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
@@ -508,6 +524,9 @@ spec:
                       type: string
                     type: array
                 type: object
+              lastActivity:
+                format: date-time
+                type: string
               ownerToken:
                 type: string
               phase:
@@ -540,6 +559,19 @@ spec:
                   prior to shutting the workspace down. This condition is only used
                   for headless workspaces.
                 type: string
+              storage:
+                properties:
+                  attachedDevice:
+                    type: string
+                  mountPath:
+                    type: string
+                  volumeName:
+                    type: string
+                required:
+                - attachedDevice
+                - mountPath
+                - volumeName
+                type: object
               url:
                 type: string
             required:
