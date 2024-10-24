@@ -103,14 +103,6 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 		return nil
 	})
 
-	disableLongRunningMigrationsJob := false
-	_ = ctx.WithExperimental(func(cfg *experimental.Config) error {
-		if cfg.WebApp != nil && cfg.WebApp.Server != nil {
-			disableLongRunningMigrationsJob = cfg.WebApp.Server.DisableLongRunningMigrationJob
-		}
-		return nil
-	})
-
 	disableCompleteSnapshotJob := false
 	_ = ctx.WithExperimental(func(cfg *experimental.Config) error {
 		if cfg.WebApp != nil && cfg.WebApp.Server != nil {
@@ -188,9 +180,26 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 		return nil
 	})
 
+	var isSingleOrgInstallation bool
+	_ = ctx.WithExperimental(func(cfg *experimental.Config) error {
+		if cfg.WebApp != nil && cfg.WebApp.Server != nil {
+			isSingleOrgInstallation = cfg.WebApp.Server.IsSingleOrgInstallation
+		}
+		return nil
+	})
+
 	_, _, adminCredentialsPath := getAdminCredentials()
 
 	_, _, authCfg := auth.GetConfig(ctx)
+
+	redisConfig := redis.GetConfiguration(ctx)
+	_ = ctx.WithExperimental(func(cfg *experimental.Config) error {
+		if cfg.WebApp != nil && cfg.WebApp.Redis != nil {
+			redisConfig.Address = cfg.WebApp.Redis.Address
+		}
+
+		return nil
+	})
 
 	// todo(sje): all these values are configurable
 	scfg := ConfigSerialized{
@@ -216,17 +225,14 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 		GitHubApp:            githubApp,
 		WorkspaceGarbageCollection: WorkspaceGarbageCollection{
 			Disabled:                   disableWsGarbageCollection,
-			IntervalSeconds:            5 * 60,
+			IntervalSeconds:            1 * 60 * 30, // 30 minutes
 			MinAgeDays:                 14,
 			MinAgePrebuildDays:         7,
 			ChunkLimit:                 1000,
 			ContentRetentionPeriodDays: 21,
-			ContentChunkLimit:          100,
+			ContentChunkLimit:          3000,
 			PurgeRetentionPeriodDays:   365,
 			PurgeChunkLimit:            5000,
-		},
-		LongRunningMigrationsJob: JobConfig{
-			Disabled: disableLongRunningMigrationsJob,
 		},
 		CompleteSnapshotJob: JobConfig{
 			Disabled: disableCompleteSnapshotJob,
@@ -290,9 +296,10 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 		Admin: AdminConfig{
 			CredentialsPath: adminCredentialsPath,
 		},
-		ShowSetupModal: showSetupModal,
-		Auth:           authCfg,
-		Redis:          redis.GetConfiguration(ctx),
+		ShowSetupModal:          showSetupModal,
+		Auth:                    authCfg,
+		Redis:                   redisConfig,
+		IsSingleOrgInstallation: isSingleOrgInstallation,
 	}
 
 	fc, err := common.ToJSONString(scfg)

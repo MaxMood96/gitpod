@@ -23,7 +23,7 @@ import (
 )
 
 // WorkspaceLifecycleHooks configures the lifecycle hooks for all workspaces
-func WorkspaceLifecycleHooks(cfg Config, workspaceCIDR string, workspaceExistenceCheck WorkspaceExistenceCheck, uidmapper *iws.Uidmapper, xfs *quota.XFS, cgroupMountPoint string) map[session.WorkspaceState][]session.WorkspaceLivecycleHook {
+func WorkspaceLifecycleHooks(cfg Config, workspaceCIDR string, uidmapper *iws.Uidmapper, xfs *quota.XFS, cgroupMountPoint string) map[session.WorkspaceState][]session.WorkspaceLivecycleHook {
 	// startIWS starts the in-workspace service for a workspace. This lifecycle hook is idempotent, hence can - and must -
 	// be called on initialization and ready. The on-ready hook exists only to support ws-daemon restarts.
 	startIWS := iws.ServeWorkspace(uidmapper, api.FSShiftMethod(cfg.UserNamespaces.FSShift), cgroupMountPoint, workspaceCIDR)
@@ -91,7 +91,7 @@ func hookSetupWorkspaceLocation(ctx context.Context, ws *session.Workspace) (err
 		// in the very unlikely event that the workspace Pod did not mount (and thus create) the workspace directory, create it
 		err = os.Mkdir(location, 0755)
 		if os.IsExist(err) {
-			log.WithError(err).WithField("location", location).Debug("ran into non-atomic workspace location existence check")
+			log.WithError(err).WithFields(ws.OWI()).WithField("location", location).Debug("ran into non-atomic workspace location existence check")
 		} else if err != nil {
 			return xerrors.Errorf("cannot create workspace: %w", err)
 		}
@@ -112,16 +112,18 @@ func hookInstallQuota(xfs *quota.XFS, isHard bool) session.WorkspaceLivecycleHoo
 		defer tracing.FinishSpan(span, &err)
 
 		if xfs == nil {
+			log.WithFields(ws.OWI()).Warn("no xfs definition")
 			return nil
 		}
 
 		if ws.StorageQuota == 0 {
+			log.WithFields(ws.OWI()).Warn("no storage quota defined")
 			return nil
 		}
 
 		size := quota.Size(ws.StorageQuota)
 
-		log.WithFields(ws.OWI()).WithField("size", size).WithField("directory", ws.Location).Debug("setting disk quota")
+		log.WithFields(ws.OWI()).WithField("isHard", isHard).WithField("size", size).WithField("directory", ws.Location).Debug("setting disk quota")
 
 		var (
 			prj int

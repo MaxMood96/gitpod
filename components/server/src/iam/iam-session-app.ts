@@ -5,29 +5,35 @@
  */
 
 import { injectable, inject } from "inversify";
-import * as express from "express";
-import { SessionHandlerProvider } from "../session-handler";
+import express from "express";
+import { SessionHandler } from "../session-handler";
 import { Authenticator } from "../auth/authenticator";
-import { UserService } from "../user/user-service";
+import { UserAuthentication } from "../user/user-authentication";
 import { OIDCCreateSessionPayload } from "./iam-oidc-create-session-payload";
 import { log } from "@gitpod/gitpod-protocol/lib/util/logging";
-import { Identity, IdentityLookup, User } from "@gitpod/gitpod-protocol";
-import { BUILTIN_INSTLLATION_ADMIN_USER_ID, TeamDB } from "@gitpod/gitpod-db/lib";
-import { ResponseError } from "vscode-ws-jsonrpc";
+import { Identity, User } from "@gitpod/gitpod-protocol";
+import { reportJWTCookieIssued } from "../prometheus-metrics";
+import { ApplicationError } from "@gitpod/gitpod-protocol/lib/messaging/error";
+import { OrganizationService } from "../orgs/organization-service";
+import { UserService } from "../user/user-service";
+import { UserDB } from "@gitpod/gitpod-db/lib";
+import { SYSTEM_USER, SYSTEM_USER_ID } from "../authorization/authorizer";
+import { runWithSubjectId, runWithRequestContext } from "../util/request-context";
 
 @injectable()
 export class IamSessionApp {
-    @inject(SessionHandlerProvider)
-    protected readonly sessionHandlerProvider: SessionHandlerProvider;
-    @inject(Authenticator)
-    protected readonly authenticator: Authenticator;
-    @inject(UserService)
-    protected readonly userService: UserService;
-    @inject(TeamDB)
-    protected readonly teamDb: TeamDB;
+    constructor(
+        @inject(SessionHandler) private readonly sessionHandler: SessionHandler,
+        @inject(Authenticator) private readonly authenticator: Authenticator,
+        @inject(UserAuthentication) private readonly userAuthentication: UserAuthentication,
+        @inject(UserService) private readonly userService: UserService,
+        @inject(OrganizationService) private readonly orgService: OrganizationService,
+        @inject(SessionHandler) private readonly session: SessionHandler,
+        @inject(UserDB) private readonly userDb: UserDB,
+    ) {}
 
     public getMiddlewares() {
-        return [express.json(), this.sessionHandlerProvider.sessionHandler, ...this.authenticator.initHandlers];
+        return [express.json(), this.sessionHandler.http(), ...this.authenticator.initHandlers];
     }
 
     public create(): express.Application {
@@ -36,13 +42,25 @@ export class IamSessionApp {
             app.use(middleware);
         });
 
+        // Use RequestContext
+        app.use((req, res, next) => {
+            runWithRequestContext(
+                {
+                    requestKind: "iam-session-app",
+                    requestMethod: req.path,
+                    signal: new AbortController().signal,
+                },
+                () => next(),
+            );
+        });
+
         app.post("/session", async (req: express.Request, res: express.Response) => {
             try {
-                const result = await this.doCreateSession(req);
+                const result = await runWithSubjectId(SYSTEM_USER, async () => this.doCreateSession(req, res));
                 res.status(200).json(result);
             } catch (error) {
                 log.error("Error creating session on behalf of IAM", error);
-                if (error instanceof ResponseError) {
+                if (ApplicationError.hasErrorCode(error)) {
                     res.status(error.code).json({ message: error.message });
                     return;
                 }
@@ -55,23 +73,37 @@ export class IamSessionApp {
         return app;
     }
 
-    protected async doCreateSession(req: express.Request) {
+    private async doCreateSession(req: express.Request, res: express.Response) {
         const payload = OIDCCreateSessionPayload.validate(req.body);
 
         const existingUser = await this.findExistingOIDCUser(payload);
+        if (existingUser) {
+            await this.updateOIDCUserOnSignin(existingUser, payload);
+
+            try {
+                //TODO we need to fix users without a team membership that happened because of a bug in the past
+                // this is a workaround to fix the issue for now, but should be removed after a while
+                if (existingUser.organizationId) {
+                    await this.orgService.addOrUpdateMember(
+                        SYSTEM_USER_ID,
+                        existingUser.organizationId,
+                        existingUser.id,
+                        "member",
+                        { flexibleRole: true, skipRoleUpdate: true },
+                    );
+                }
+            } catch (error) {
+                log.error("Error fixing user team membership", error);
+            }
+        }
+
         const user = existingUser || (await this.createNewOIDCUser(payload));
 
-        await new Promise<void>((resolve, reject) => {
-            req.login(user, (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
+        const cookie = await this.session.createJWTSessionCookie(user.id);
+        res.cookie(cookie.name, cookie.value, cookie.opts);
+        reportJWTCookieIssued();
+
         return {
-            sessionId: req.sessionID,
             userId: user.id,
         };
     }
@@ -80,7 +112,7 @@ export class IamSessionApp {
      * Maps from OIDC profile (ID token) to `Identity` which is used for the primary
      * lookup of existing users as well as for creating new accounts.
      */
-    protected mapOIDCProfileToIdentity(payload: OIDCCreateSessionPayload): Identity {
+    private mapOIDCProfileToIdentity(payload: OIDCCreateSessionPayload): Identity {
         const {
             claims: { sub, name, email, aud },
         } = payload;
@@ -92,80 +124,73 @@ export class IamSessionApp {
         };
     }
 
-    /**
-     * Computes search criteria to look up existing accounts in compatibility mode.
-     * The composite key `[subject, oidc-client-config-id]` was used as identifier for
-     * existing accounts before the switch to `[subject, audience/client-id]`.
-     */
-    protected mapOIDCProfileToIdentityLookup_compatibility(payload: OIDCCreateSessionPayload): IdentityLookup {
-        const {
-            claims: { sub },
-            oidcClientConfigId,
-        } = payload;
-        return {
-            authId: sub,
-            authProviderId: oidcClientConfigId,
-        };
-    }
-
-    protected async findExistingOIDCUser(payload: OIDCCreateSessionPayload): Promise<User | undefined> {
+    private async findExistingOIDCUser(payload: OIDCCreateSessionPayload): Promise<User | undefined> {
         // Direct lookup
-        let existingUser = await this.userService.findUserForLogin({
+        let existingUser = await this.userAuthentication.findUserForLogin({
             candidate: this.mapOIDCProfileToIdentity(payload),
         });
-        if (existingUser) {
-            return existingUser;
-        }
-
-        // Compatibility lookup
-        existingUser = await this.userService.findUserForLogin({
-            candidate: this.mapOIDCProfileToIdentityLookup_compatibility(payload),
-        });
-        if (existingUser) {
-            // TODO(at) convert legacy entry
-            return existingUser;
-        }
-
-        // Organizational account lookup by email address
-        existingUser = await this.userService.findOrgOwnedUser({
-            organizationId: payload.organizationId,
-            email: payload.claims.email,
-        });
-        if (existingUser) {
-            log.info("Found Org-owned user by email.", { email: payload?.claims?.email });
+        if (!existingUser) {
+            // Organizational account lookup by email address
+            existingUser = await this.userAuthentication.findOrgOwnedUser({
+                organizationId: payload.organizationId,
+                email: payload.claims.email,
+            });
+            if (existingUser) {
+                log.info("Found Org-owned user by email.", { email: payload?.claims?.email });
+            }
         }
 
         return existingUser;
     }
 
-    protected async createNewOIDCUser(payload: OIDCCreateSessionPayload): Promise<User> {
+    /**
+     * Updates `User.identities[current IdP]` entry
+     */
+    private async updateOIDCUserOnSignin(user: User, payload: OIDCCreateSessionPayload) {
+        const recent = this.mapOIDCProfileToIdentity(payload);
+        const existingIdentity = user.identities.find((identity) => identity.authId === recent.authId);
+
+        // Update entry
+        if (existingIdentity) {
+            await this.userAuthentication.updateUserIdentity(user, {
+                ...existingIdentity,
+                primaryEmail: recent.primaryEmail,
+                lastSigninTime: new Date().toISOString(),
+            });
+            await this.userService.updateUser(SYSTEM_USER_ID, {
+                id: user.id,
+                fullName: payload.claims.name,
+            });
+        }
+    }
+
+    private async createNewOIDCUser(payload: OIDCCreateSessionPayload): Promise<User> {
         const { claims, organizationId } = payload;
 
-        // Until we support SKIM (or any other means to sync accounts) we create new users here as a side-effect of the login
-        const user = await this.userService.createUser({
-            identity: this.mapOIDCProfileToIdentity(payload),
-            userUpdate: (user) => {
-                user.name = claims.name;
-                user.avatarUrl = claims.picture;
-                user.organizationId = organizationId;
-            },
+        return this.userDb.transaction(async (_, ctx) => {
+            // Until we support SKIM (or any other means to sync accounts) we create new users here as a side-effect of the login
+            const user = await this.userService.createUser(
+                {
+                    organizationId,
+                    identity: { ...this.mapOIDCProfileToIdentity(payload), lastSigninTime: new Date().toISOString() },
+                    userUpdate: (user) => {
+                        user.fullName = claims.name;
+                        user.name = claims.name;
+                        user.avatarUrl = claims.picture;
+                    },
+                },
+                ctx,
+            );
+
+            await this.orgService.addOrUpdateMember(
+                SYSTEM_USER_ID,
+                organizationId,
+                user.id,
+                "member",
+                { flexibleRole: true },
+                ctx,
+            );
+            return user;
         });
-
-        // Check: Is this the first login? If yes, make the logged-in user the owner
-        const memberInfos = await this.teamDb.findMembersByTeam(organizationId);
-        const firstMember = memberInfos.filter((m) => m.userId !== BUILTIN_INSTLLATION_ADMIN_USER_ID).length === 0;
-        await this.teamDb.addMemberToTeam(user.id, organizationId);
-        if (firstMember) {
-            await this.teamDb.setTeamMemberRole(user.id, organizationId, "owner");
-
-            // remove the admin-user from the org
-            try {
-                await this.teamDb.removeMemberFromTeam(BUILTIN_INSTLLATION_ADMIN_USER_ID, organizationId);
-            } catch {
-                // ignore errors if membership would not exist.
-            }
-        }
-
-        return user;
     }
 }
